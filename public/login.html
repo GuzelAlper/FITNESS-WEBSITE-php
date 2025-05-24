@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Войти</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #000 url('https://images.unsplash.com/photo-1605296867304-46d5465a13f1') center/cover no-repeat;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .login-container {
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+
+        h2 {
+            color: #1d3557;
+        }
+
+        input {
+            width: 90%;
+            padding: 10px;
+            margin: 10px 0;
+        }
+
+        button {
+            padding: 11px 20px;
+            background-color: #1d3557;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+
+        }
+
+        button:hover {
+            background-color: #1d3557;
+        }
+
+        .back-button {
+            display: inline-block;
+            margin-top: 15px;
+            padding: 10px 20px;
+            background-color: #1d3557;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .back-button:hover {
+            background-color: #0c1e38;
+        }
+
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="login-container">
+        <form id="loginForm">
+            <h2>Войти</h2>
+            <input type="email" name="email" placeholder="Электронная почта" required />
+            <input type="password" name="password" placeholder="Пароль" required />
+            <button type="submit">Войти</button>
+            <a href="index.html" class="back-button">← Назад на главную</a>
+            <div id="errorMessage" class="error"></div>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById("loginForm").addEventListener("submit", async function (e) {
+            e.preventDefault();
+
+            const form = e.target;
+            const errorDiv = document.getElementById("errorMessage");
+            errorDiv.textContent = "";
+
+            try {
+                const response = await fetch("http://127.0.0.1:8000/api/login", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        email: form.email.value,
+                        password: form.password.value,
+                    }),
+                });
+
+                const contentType = response.headers.get("content-type");
+
+                if (!contentType || !contentType.includes("application/json")) {
+                    errorDiv.textContent = "Sunucudan geçerli veri alınamadı. Hata sayfası dönüyor olabilir.";
+                    return;
+                }
+
+                const data = await response.json();
+
+                if (response.ok && data.access_token) {
+                    localStorage.setItem("token", data.access_token);
+                    window.location.href = "dashboard.html";
+                } else {
+                    errorDiv.textContent = data.message || "Giriş başarısız.";
+                }
+            } catch (err) {
+                errorDiv.textContent = "Sunucuya bağlanılamadı.";
+                console.error("Giriş hatası:", err);
+            }
+        });
+    </script>
+</body>
+
+</html>

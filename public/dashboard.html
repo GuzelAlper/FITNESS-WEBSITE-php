@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Панель управления</title>
+    <style>
+        body {
+            background: #000 url('https://images.unsplash.com/photo-1605296867304-46d5465a13f1') center/cover no-repeat;
+            font-family: Arial, sans-serif;
+            background-color: #f2f2f2;
+            text-align: center;
+            padding: 60px;
+        }
+
+        h1 {
+            color: #f2f2f2;
+            margin-bottom: 40px;
+        }
+
+        .menu {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-width: 300px;
+            margin: auto;
+        }
+
+        button {
+            padding: 18px 25px;
+            background-color: #1d3557;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background-color: #0c1e38;
+        }
+
+        .logout {
+            background-color: #dc3545;
+        }
+
+        .logout:hover {
+            background-color: #bb2d3b;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Добро пожаловать</h1>
+
+    <div class="menu">
+        <button onclick="goTo('plans.html')">📋 Просмотр планов</button>
+        <button onclick="goTo('progress.html')">✅ Отслеживание прогресса</button>
+        <button onclick="goTo('progress_chart.html')">📈 График прогресса</button>
+        <button class="logout" onclick="goTo('logout.html')">🚪 Выйти</button>
+    </div>
+
+    <script>
+        const token = localStorage.getItem("token");
+        if (!token) {
+            alert("Пожалуйста, войдите в систему.");
+            window.location.href = "login.html";
+        }
+
+        function goTo(page) {
+            window.location.href = page;
+        }
+    </script>
+</body>
+
+</html>

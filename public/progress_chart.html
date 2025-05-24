@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Расширенная диаграмма прогресса</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background: #000 url('https://images.unsplash.com/photo-1605296867304-46d5465a13f1') center/cover no-repeat;
+            font-family: Arial, sans-serif;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            color: #fff;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        select,
+        input[type="date"],
+        button {
+            padding: 8px 12px;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+        }
+
+        canvas {
+            max-width: 900px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="controls">
+        <button onclick="window.location.href='dashboard.html'">🏠 Панель управления</button>
+        <button onclick="window.location.href='logout.html'">🚪 Выйти</button>
+    </div>
+
+    <h2>Диаграмма прогресса</h2>
+
+    <div class="controls">
+        <select id="chartType">
+            <option value="line">Линейная диаграмма</option>
+            <option value="bar">Столбчатая диаграмма</option>
+        </select>
+
+        <select id="timeFilter">
+            <option value="all">Все время</option>
+            <option value="week">Последние 7 дней</option>
+            <option value="month">Этот месяц</option>
+            <option value="custom">Пользовательская дата</option>
+        </select>
+
+        <input type="date" id="fromDate" style="display:none;">
+        <input type="date" id="toDate" style="display:none;">
+
+        <button onclick="loadData()">
+            Обновить
+        </button>
+    </div>
+
+    <canvas id="progressChart" width="800" height="400"></canvas>
+
+    <script>
+        const token = localStorage.getItem("token");
+        let chartInstance;
+        let workoutMap = {};
+
+        if (!token) {
+            alert("Пожалуйста, войдите в систему.");
+            window.location.href = "login.html";
+        }
+
+        async function loadWorkoutMap() {
+            const res = await fetch("http://127.0.0.1:8000/api/workouts/list", {
+                headers: { Authorization: "Bearer " + token, Accept: "application/json" }
+            });
+            const data = await res.json();
+            workoutMap = {};
+            data.forEach(w => workoutMap[w.id] = w.title);
+        }
+
+        function getFilteredData(data) {
+            const filter = document.getElementById("timeFilter").value;
+            const from = document.getElementById("fromDate").value;
+            const to = document.getElementById("toDate").value;
+
+            const now = new Date();
+            let start = null;
+
+            if (filter === "week") {
+                start = new Date();
+                start.setDate(now.getDate() - 6);
+            } else if (filter === "month") {
+                start = new Date(now.getFullYear(), now.getMonth(), 1);
+            } else if (filter === "custom") {
+                return data.filter(d => d.date >= from && d.date <= to);
+            }
+
+            if (start) {
+                const startStr = start.toISOString().split("T")[0];
+                return data.filter(d => d.date >= startStr);
+            }
+
+            return data;
+        }
+
+        async function loadData() {
+            await loadWorkoutMap();
+
+            const res = await fetch("http://127.0.0.1:8000/api/progress", {
+                headers: { Authorization: "Bearer " + token, Accept: "application/json" }
+            });
+
+            const raw = await res.json();
+            const filtered = getFilteredData(raw);
+
+            const grouped = {};
+            filtered.forEach(item => {
+                const label = `${item.date} - ${workoutMap[item.workout_id] || "?"}`;
+                grouped[label] = item.completed ? 1 : 0;
+
+            });
+
+            const labels = Object.keys(grouped);
+            const values = labels.map(l => grouped[l]);
+
+            const ctx = document.getElementById("progressChart").getContext("2d");
+            if (chartInstance) chartInstance.destroy();
+
+            const chartType = document.getElementById("chartType").value;
+
+            chartInstance = new Chart(ctx, {
+                type: chartType,
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: "Завершенные тренировки",
+                        data: values,
+                        backgroundColor: "rgba(75, 192, 192, 0.2)",
+                        borderColor: "rgba(75, 192, 192, 1)",
+                        borderWidth: 2,
+                        tension: chartType === "line" ? 0.3 : 0,
+                        fill: chartType === "line"
+                    }, {
+                        label: "Ежедневная цель (1)",
+                        data: new Array(labels.length).fill(1),
+                        type: 'line',
+                        borderColor: 'red',
+                        borderDash: [5, 5],
+                        pointRadius: 0,
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: true },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: "Дата - Упражнение" },
+                            ticks: { maxRotation: 90, minRotation: 45 }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: "Количество завершенных" },
+                            ticks: { stepSize: 1 }
+                        }
+                    }
+                }
+            });
+        }
+
+        document.getElementById("timeFilter").addEventListener("change", () => {
+            const isCustom = document.getElementById("timeFilter").value === "custom";
+            document.getElementById("fromDate").style.display = isCustom ? "inline" : "none";
+            document.getElementById("toDate").style.display = isCustom ? "inline" : "none";
+        });
+
+        window.addEventListener("DOMContentLoaded", loadData);
+    </script>
+
+</body>
+
+</html>

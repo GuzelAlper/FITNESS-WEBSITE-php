@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Planlar</title>
+    <style>
+        body {
+            font-family: Arial;
+            background: #000 url('https://images.unsplash.com/photo-1605296867304-46d5465a13f1') center/cover no-repeat;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: aliceblue;
+        }
+
+        table {
+            margin: auto;
+            border-collapse: collapse;
+            width: 80%;
+            background: rgba(255, 255, 255, 0.85);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        th,
+        td {
+            padding: 12px;
+            border: 1px solid #ccc;
+            text-align: center;
+            backdrop-filter: blur(4px);
+        }
+
+        button {
+            padding: 6px 12px;
+            border: none;
+            background-color: #1d3557;
+            color: white;
+            cursor: pointer;
+            margin: 2px;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background-color: #b02a37;
+        }
+
+        .edit-btn {
+            background-color: #1d3557;
+        }
+
+        .edit-btn:hover {
+            background-color: #0056b3;
+        }
+
+        form {
+            text-align: center;
+            margin-top: 30px;
+            background: rgba(255, 255, 255, 0.85);
+            padding: 20px;
+            border-radius: 12px;
+            width: fit-content;
+            margin-left: auto;
+            margin-right: auto;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        }
+
+        input {
+            padding: 10px;
+            margin: 5px;
+            width: 200px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+        }
+
+        .success {
+            color: green;
+            text-align: center;
+        }
+
+        .error {
+            color: red;
+            text-align: center;
+        }
+
+        .top-buttons {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .top-buttons button {
+            background-color: #1d3557;
+            padding: 10px 20px;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            margin: 5px;
+            cursor: pointer;
+        }
+
+        .top-buttons button.logout {
+            background-color: #6c757d;
+            padding: 10px 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="top-buttons">
+        <button onclick="window.location.href='dashboard.html'">⬅ Вернуться в панель управления</button>
+        <button class="logout" onclick="window.location.href='logout.html'">Выйти</button>
+    </div>
+
+    <h1>Планы</h1>
+
+    <div id="planListContainer"></div>
+
+    <form id="addPlanForm">
+        <input type="text" name="title" placeholder="Название плана" required />
+        <input type="date" name="start_date" required />
+        <input type="date" name="end_date" required />
+        <button type="submit" style="background-color:#1d3557; color:white;">Добавить план</button>
+    </form>
+
+    <div id="feedback" class="error"></div>
+
+    <script>
+        let token = localStorage.getItem("token");
+        let userId = null;
+
+        if (!token) {
+            alert("Пожалуйста, войдите в систему.");
+            window.location.href = "login.html";
+        }
+
+        async function fetchUserId() {
+            try {
+                const res = await fetch("http://127.0.0.1:8000/api/user", {
+                    headers: {
+                        Authorization: "Bearer " + token,
+                        Accept: "application/json"
+                    }
+                });
+                const data = await res.json();
+                userId = data.id;
+            } catch (err) {
+                console.error("Не удалось получить ID пользователя", err);
+            }
+        }
+
+        async function fetchPlans() {
+            const container = document.getElementById("planListContainer");
+            const feedback = document.getElementById("feedback");
+            container.innerHTML = "";
+            try {
+                const res = await fetch("http://127.0.0.1:8000/api/plans", {
+                    headers: {
+                        Authorization: "Bearer " + token,
+                        Accept: "application/json"
+                    }
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    feedback.textContent = "Не удалось получить планы";
+                    return;
+                }
+
+                const table = document.createElement("table");
+                table.innerHTML = `
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Название</th>
+              <th>Начало</th>
+              <th>Конец</th>
+              <th>Действие</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.map(plan => `
+              <ru>
+                <td>${plan.id}</td>
+                <td>${plan.title}</td>
+                <td>${plan.start_date}</td>
+                <td>${plan.end_date}</td>
+                <td>
+                  <button onclick="deletePlan(${plan.id})">Удалить</button>
+                  <button class="edit-btn" onclick="window.location.href='plan-edit.html?id=${plan.id}'">Изменить</button>
+                </td>
+              </ru>
+            `).join("")}
+          </tbody>`;
+                container.appendChild(table);
+            } catch (err) {
+                feedback.textContent = "Не удалось подключиться к серверу.";
+            }
+        }
+
+        async function deletePlan(id) {
+            const feedback = document.getElementById("feedback");
+            try {
+                const res = await fetch(`http://127.0.0.1:8000/api/plans/${id}`, {
+                    method: "DELETE",
+                    headers: {
+                        Authorization: "Bearer " + token,
+                        Accept: "application/json"
+                    }
+                });
+
+                if (res.ok) {
+                    feedback.textContent = "";
+                    fetchPlans();
+                } else {
+                    feedback.textContent = "Не удалось удалить план.";
+                }
+            } catch (err) {
+                feedback.textContent = "Не удалось подключиться к серверу.";
+            }
+        }
+
+        document.getElementById("addPlanForm").addEventListener("submit", async function (e) {
+            e.preventDefault();
+            const form = e.target;
+            const feedback = document.getElementById("feedback");
+
+            const title = form.title.value;
+            const start_date = form.start_date.value;
+            const end_date = form.end_date.value;
+
+            try {
+                const res = await fetch("http://127.0.0.1:8000/api/plans", {
+                    method: "POST",
+                    headers: {
+                        Authorization: "Bearer " + token,
+                        "Content-Type": "application/json",
+                        Accept: "application/json"
+                    },
+                    body: JSON.stringify({
+                        title,
+                        start_date,
+                        end_date,
+                        user_id: userId
+                    })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    form.reset();
+                    feedback.textContent = "";
+                    fetchPlans();
+                } else {
+                    feedback.textContent = data.message || "Не удалось добавить план.";
+                }
+
+            } catch (err) {
+                feedback.textContent = "Не удалось подключиться к серверу.";
+            }
+        });
+
+        window.addEventListener("DOMContentLoaded", async () => {
+            await fetchUserId();
+            await fetchPlans();
+        });
+    </script>
+
+</body>
+
+</html>

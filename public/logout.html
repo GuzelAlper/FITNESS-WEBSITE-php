@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Çıkış Yap</title>
+    <style>
+        body {
+            font-family: Arial;
+            background-color: #f2f2f2;
+            padding: 40px;
+            text-align: center;
+        }
+
+        h2 {
+            margin-bottom: 30px;
+        }
+
+        button {
+            padding: 12px 24px;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #bb2d3b;
+        }
+
+        .message {
+            margin-top: 20px;
+            font-weight: bold;
+            color: green;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>Çıkış Yapmak İster misiniz?</h2>
+    <button id="logoutBtn">Çıkış Yap</button>
+    <div class="message" id="msg"></div>
+
+    <script>
+        const token = localStorage.getItem("token");
+
+        document.getElementById("logoutBtn").addEventListener("click", async () => {
+            const msg = document.getElementById("msg");
+
+            if (!token) {
+                msg.textContent = "Zaten giriş yapılmamış.";
+                window.location.href = "login.html";
+                return;
+            }
+
+            try {
+                const res = await fetch("http://127.0.0.1:8000/api/logout", {
+                    method: "POST",
+                    headers: {
+                        Authorization: "Bearer " + token,
+                        Accept: "application/json"
+                    }
+                });
+
+                if (res.ok) {
+                    localStorage.removeItem("token");
+                    msg.textContent = "Başarıyla çıkış yapıldı. Giriş sayfasına yönlendiriliyorsunuz...";
+                    setTimeout(() => {
+                        window.location.href = "index.html";
+                    }, 1500);
+                } else {
+                    msg.textContent = "Çıkış başarısız.";
+                }
+            } catch (err) {
+                msg.textContent = "Sunucuya bağlanılamadı.";
+                console.error(err);
+            }
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Отслеживание прогресса</title>
+    <style>
+        body {
+            background: #000 url('https://images.unsplash.com/photo-1605296867304-46d5465a13f1') center/cover no-repeat;
+            font-family: Arial, sans-serif;
+            padding: 30px;
+        }
+
+        h2 {
+            color: #fff;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        table {
+            margin: auto;
+            border-collapse: collapse;
+            width: 80%;
+            background-color: rgba(255, 255, 255, 0.85);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        }
+
+        th,
+        td {
+            padding: 12px;
+            border: 1px solid #ccc;
+            text-align: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .error {
+            color: red;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .logout {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .logout button {
+            background: #6c757d;
+            padding: 10px 15px;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .logout button:hover {
+            background: #5a6268;
+        }
+
+        #addForm {
+            margin: 40px auto;
+            width: 300px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 0 12px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(4px);
+        }
+
+        #addForm select,
+        #addForm input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 12px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+        }
+
+        #addForm button {
+            background-color: #1d3557;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        #addForm button:hover {
+            background-color: #0c1e38;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div style="text-align: center; margin-bottom: 20px;">
+        <button onclick="window.location.href='dashboard.html'"
+            style="background-color:#1d3557; padding:10px 20px; color:white; border:none; border-radius:5px;">
+            ⬅ Вернуться в панель управления
+        </button>
+    </div>
+
+    <div class="logout">
+        <button onclick="window.location.href='logout.html'">Выйти</button>
+    </div>
+
+    <h2>Отслеживание прогресса</h2>
+    <div id="progressContainer">Загрузка...</div>
+    <div id="error" class="error"></div>
+
+    <div id="addForm">
+        <h3 style="text-align: center;">Добавить новый прогресс</h3>
+
+        <label>Название упражнения:</label>
+        <select id="formWorkoutId">
+            <option value="">Пожалуйста, выберите упражнение</option>
+        </select>
+
+        <label>Дата:</label>
+        <input type="date" id="formDate" />
+
+        <label>Завершено?</label>
+        <select id="formCompleted">
+            <option value="true">Да</option>
+            <option value="false">Нет</option>
+        </select>
+
+        <button onclick="submitProgressForm()">Сохранить</button>
+    </div>
+
+    <script>
+        const token = localStorage.getItem("token");
+        let workoutMap = {};
+
+        if (!token) {
+            alert("Пожалуйста, войдите в систему.");
+            window.location.href = "login.html";
+        }
+
+        async function loadWorkoutOptions() {
+            const select = document.getElementById("formWorkoutId");
+            while (select.firstChild) {
+                select.removeChild(select.firstChild);
+            }
+
+            const placeholder = document.createElement("option");
+            placeholder.value = "";
+            placeholder.textContent = "Пожалуйста, выберите упражнение";
+            select.appendChild(placeholder);
+
+            try {
+                const res = await fetch("http://127.0.0.1:8000/api/workouts/list", {
+                    headers: {
+                        Authorization: "Bearer " + token,
+                        Accept: "application/json"
+                    }
+                });
+
+                const data = await res.json();
+                workoutMap = {};
+
+                data.forEach(w => {
+                    workoutMap[w.id] = w.title;
+                    const opt = document.createElement("option");
+                    opt.value = w.id;
+                    opt.textContent = w.title;
+                    select.appendChild(opt);
+                });
+
+            } catch (err) {
+                console.error("Не удалось получить список упражнений:", err);
+            }
+        }
+
+        async function fetchProgress() {
+            const container = document.getElementById("progressContainer");
+            const error = document.getElementById("error");
+
+            try {
+                const res = await fetch("http://127.0.0.1:8000/api/progress", {
+                    headers: {
+                        Authorization: "Bearer " + token,
+                        Accept: "application/json"
+                    }
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    error.textContent = data.message || "Не удалось получить данные.";
+                    container.textContent = "";
+                    return;
+                }
+
+                if (data.length === 0) {
+                    container.innerHTML = `<p style="text-align: center; margin-top: 50px;">Пока нет записей о прогрессе.</p>`;
+                    return;
+                }
+
+                const table = document.createElement("table");
+                table.innerHTML = `
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Упражнение</th>
+              <th>Дата</th>
+              <th>Завершено?</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.map(item => `
+              <tr>
+                <td>${item.id}</td>
+                <td>${workoutMap[item.workout_id] || "?"}</td>
+                <td>${item.date}</td>
+                <td>${item.completed ? "Да" : "Нет"}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        `;
+
+                container.innerHTML = "";
+                container.appendChild(table);
+
+            } catch (err) {
+                error.textContent = "Не удалось подключиться к серверу.";
+                container.textContent = "";
+                console.error(err);
+            }
+        }
+
+        async function submitProgressForm() {
+            const workout_id = document.getElementById("formWorkoutId").value;
+            const date = document.getElementById("formDate").value;
+            const completed = document.getElementById("formCompleted").value === "true";
+
+            if (!workout_id || !date) {
+                alert("Пожалуйста, заполните все поля.");
+                return;
+            }
+
+            try {
+                const res = await fetch("http://127.0.0.1:8000/api/progress", {
+                    method: "POST",
+                    headers: {
+                        Authorization: "Bearer " + token,
+                        "Content-Type": "application/json",
+                        Accept: "application/json"
+                    },
+                    body: JSON.stringify({
+                        workout_id: parseInt(workout_id),
+                        date,
+                        completed
+                    })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    alert("Прогресс добавлен!");
+                    fetchProgress();
+                } else {
+                    alert(data.message || "Не удалось добавить.");
+                }
+
+            } catch (err) {
+                alert("Не удалось подключиться к серверу.");
+                console.error(err);
+            }
+        }
+
+        window.addEventListener("DOMContentLoaded", () => {
+            loadWorkoutOptions();
+            fetchProgress();
+        });
+    </script>
+
+</body>
+
+</html>

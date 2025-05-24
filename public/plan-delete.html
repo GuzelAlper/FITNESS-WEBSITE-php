@@ -1,0 +1,31 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Plan Sil</title>
+</head>
+<body>
+    <h2>Plan Sil</h2>
+    <form id="deleteForm">
+        <input type="text" id="id" placeholder="Plan ID" required><br>
+        <input type="text" id="token" placeholder="Bearer Token" required><br>
+        <button type="submit">Sil</button>
+    </form>
+    <script>
+        document.getElementById('deleteForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const id = document.getElementById('id').value;
+            const token = document.getElementById('token').value;
+            const response = await fetch(`http://127.0.0.1:8000/api/plansSilme/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                }
+            });
+            const result = await response.json();
+            alert(JSON.stringify(result));
+        });
+    </script>
+</body>
+</html>
